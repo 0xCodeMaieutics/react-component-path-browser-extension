@@ -2,6 +2,7 @@ import { PAGE_EVENT, type PageConfig } from "./lib/messages"
 import { isCopyMode } from "./lib/reference"
 import { ComponentResolver, defaultSelection } from "./lib/resolve"
 import { detectReact, inspectElement, selectableComponents } from "./picker/inspect"
+import { pickTargetFromEvent } from "./picker/pick-target"
 import { Overlay } from "./picker/overlay"
 import { Picker, copyComponent, type PickerOptions } from "./picker/picker"
 
@@ -68,13 +69,7 @@ function start(): void {
   window.addEventListener(
     "contextmenu",
     (event) => {
-      contextTarget = null
-      for (const node of event.composedPath()) {
-        if (node instanceof Element) {
-          contextTarget = node
-          break
-        }
-      }
+      contextTarget = pickTargetFromEvent(event, (element) => overlay.isOverlayNode(element))
     },
     { capture: true, passive: true },
   )

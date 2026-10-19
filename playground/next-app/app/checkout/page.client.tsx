@@ -23,6 +23,7 @@ export function CheckoutPageClient() {
           total={total}
         />
       )}
+      <input type="date" id="plan-date" defaultValue="2026-10-19" readOnly />
       <Button id="plain-button" onClick={() => alert("don't")}>Cancel</Button>
     </section>
   )

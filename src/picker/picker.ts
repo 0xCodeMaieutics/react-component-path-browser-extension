@@ -3,6 +3,7 @@ import { copyModeForEvent, formatCopy, formatLocation, type CopyMode } from "../
 import type { ComponentResolver, ResolvedComponent } from "../lib/resolve"
 import { componentRect, inspectElement, selectableComponents, type Inspection } from "./inspect"
 import type { Overlay } from "./overlay"
+import { pickTargetAtPoint, pickTargetFromEvent } from "./pick-target"
 
 export interface PickerOptions {
   overlay: Overlay
@@ -55,6 +56,7 @@ export class Picker {
     if (this.active) return
     this.active = true
     window.addEventListener("pointermove", this.onPointerMove, true)
+    window.addEventListener("mousemove", this.onPointerMove, true)
     window.addEventListener("click", this.onClick, true)
     window.addEventListener("keydown", this.onKeyDown, true)
     window.addEventListener("scroll", this.onViewportChange, true)
@@ -73,6 +75,7 @@ export class Picker {
     this.generation++
     cancelAnimationFrame(this.frame)
     window.removeEventListener("pointermove", this.onPointerMove, true)
+    window.removeEventListener("mousemove", this.onPointerMove, true)
     window.removeEventListener("click", this.onClick, true)
     window.removeEventListener("keydown", this.onKeyDown, true)
     window.removeEventListener("scroll", this.onViewportChange, true)
@@ -84,18 +87,31 @@ export class Picker {
     this.options.overlay.hide()
   }
 
+  private blocked(element: Element): boolean {
+    return this.options.overlay.isOverlayNode(element)
+  }
+
   private targetAt(event: Event): Element | null {
-    for (const node of event.composedPath()) {
-      if (!(node instanceof Element)) continue
-      if (this.options.overlay.isOverlayNode(node)) return null
-      return node
+    if (event instanceof MouseEvent) {
+      const atPoint = pickTargetAtPoint(event.clientX, event.clientY, (element) => this.blocked(element))
+      if (atPoint) return atPoint
+    } else if (this.pointer) {
+      const atPoint = pickTargetAtPoint(this.pointer.x, this.pointer.y, (element) => this.blocked(element))
+      if (atPoint) return atPoint
     }
-    return null
+    return pickTargetFromEvent(event, (element) => this.blocked(element))
   }
 
   private inspect(element: Element): void {
-    if (this.inspection && closestFiber(element)?.fiber === this.inspection.host) return
-    const inspection = inspectElement(element, this.options.resolver)
+    const found = closestFiber(element)
+    if (!found) {
+      this.inspection = null
+      this.components = null
+      this.options.overlay.hide()
+      return
+    }
+    if (this.inspection && found.fiber === this.inspection.host) return
+    const inspection = inspectElement(found.element, this.options.resolver)
     const generation = ++this.generation
     this.inspection = inspection
     this.components = null
@@ -155,7 +171,7 @@ export class Picker {
     await copyComponent(this.options, components[selected] ?? components[0], mode)
   }
 
-  private readonly onPointerMove = (event: PointerEvent): void => {
+  private readonly onPointerMove = (event: MouseEvent): void => {
     this.pointer = { x: event.clientX, y: event.clientY }
     const target = this.targetAt(event)
     cancelAnimationFrame(this.frame)
@@ -188,8 +204,8 @@ export class Picker {
     this.frame = requestAnimationFrame(() => {
       if (!this.active) return
       if (this.pointer) {
-        const element = document.elementFromPoint(this.pointer.x, this.pointer.y)
-        if (element && !this.options.overlay.isOverlayNode(element)) this.inspect(element)
+        const element = pickTargetAtPoint(this.pointer.x, this.pointer.y, (el) => this.blocked(el))
+        if (element) this.inspect(element)
       }
       this.render()
     })
