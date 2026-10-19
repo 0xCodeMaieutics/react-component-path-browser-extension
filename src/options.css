@@ -1,0 +1,104 @@
+@import "./theme.css";
+
+:root {
+  background: var(--bg);
+}
+
+main {
+  max-width: 820px;
+  margin: 40px auto;
+  padding: 0 24px;
+}
+
+header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+h2 {
+  margin: 32px 0 4px;
+  font-size: 15px;
+}
+
+p {
+  margin: 4px 0 8px;
+  color: var(--muted);
+}
+
+a {
+  color: var(--accent);
+}
+
+kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+td:last-child {
+  width: 1%;
+  white-space: nowrap;
+}
+
+input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.row.three {
+  grid-template-columns: 1fr 1fr auto;
+}
+
+.error {
+  min-height: 1.5em;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

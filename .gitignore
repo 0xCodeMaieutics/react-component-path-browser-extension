@@ -1,0 +1,11 @@
+node_modules/
+build/
+dist/
+*.zip
+*.crx
+*.pem
+.DS_Store
+playground/*/node_modules/
+playground/*/.next/
+playground/*/dist/
+e2e/.artifacts/

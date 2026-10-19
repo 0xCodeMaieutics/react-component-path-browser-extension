@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Enable React Component Copier</title>
+  </head>
+  <body>
+    <main>
+      <h1>Enable on <code id="host"></code>?</h1>
+      <p>
+        React Component Copier runs on <code>localhost</code> and <code>127.0.0.1</code> by default. Enable it here to pick
+        components on this host (every port).
+      </p>
+      <p class="error" id="error" role="alert"></p>
+      <div class="actions">
+        <button type="button" id="cancel">Cancel</button>
+        <button type="button" class="primary" id="enable" autofocus>Enable</button>
+      </div>
+    </main>
+    <script type="module" src="/src/enable.ts"></script>
+  </body>
+</html>

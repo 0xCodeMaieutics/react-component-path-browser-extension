@@ -1,0 +1,9 @@
+# Runtime source-map resolution instead of a build plugin
+
+A component reference needs the file and line range of the component's usage site. The usual way to get this is a Babel/SWC/Vite plugin that stamps source locations onto JSX at build time. We deliberately **do not** require one: the extension resolves locations at runtime from what React development builds already expose.
+
+React 19 records a `_debugStack` on each fiber; the frame just after the JSX runtime frame is the usage site, which we map back to source through the dev server's source maps (Turbopack, webpack, Vite, and Next's `/__nextjs_source-map` endpoint for Server Components and server chunks). React 18 still provides `_debugSource`, which we use directly. The end of the JSX element is found by scanning `sourcesContent` in the source map. Bundler path prefixes are normalized and the project root is learned from the maps themselves.
+
+**Considered:** a build plugin per bundler (rejected: per-project setup the user explicitly didn't want, multiplied by every bundler, and a Babel config makes Next.js fall back from SWC); reading only `_debugSource` (rejected: removed in React 19, which is most of the user's projects); a DevTools pane built on React DevTools' backend (rejected: React DevTools already covers it, and the goal is a fast in-page copy).
+
+**Consequences:** Works on any React dev build with no setup, but depends on React internals (`_debugStack`, `_debugInfo`, `_debugSource`) and on each bundler's source map and URL conventions, which can change between versions. Every resolution step must fail soft: if the path can't be resolved the extension copies the name only and never breaks the page. The e2e suite (`e2e/run.js`) covers Next.js Turbopack, Next.js webpack, a pnpm monorepo and Vite to catch such changes.

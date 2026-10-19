@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>React Component Copier</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="/icons/icon-48.png" width="40" height="40" alt="" />
+        <div>
+          <h1>React Component Copier</h1>
+          <p>
+            Press <kbd id="shortcut">Alt+Shift+C</kbd> or click the toolbar icon on a React development build, hover an
+            element, and click to copy its component name and usage site.
+            <a href="#" id="shortcuts-link">Change shortcut</a>
+          </p>
+        </div>
+      </header>
+
+      <section>
+        <h2>Hosts</h2>
+        <p>Always on for <code>localhost</code>, <code>*.localhost</code>, and <code>127.0.0.1</code> (any port).</p>
+        <table>
+          <tbody id="hosts"></tbody>
+        </table>
+        <p id="hosts-empty">No other hosts enabled.</p>
+        <form id="add-host" class="row">
+          <label class="sr-only" for="host-input">Hostname</label>
+          <input id="host-input" name="host" placeholder="staging.myapp.dev" autocomplete="off" spellcheck="false" />
+          <button type="submit" class="primary">Enable host</button>
+        </form>
+        <div class="error" id="host-error" role="alert"></div>
+      </section>
+
+      <section>
+        <h2>Path prefixes</h2>
+        <p>
+          Copied paths are relative to the project root the dev server reports (for Turbopack in a monorepo, usually the
+          repository root). When a dev server reports app-relative paths, add a prefix so paths start at the repository
+          root, e.g. <code>localhost:5173</code> → <code>apps/web/</code>.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Host</th>
+              <th>Prefix</th>
+              <th><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="prefixes"></tbody>
+        </table>
+        <p id="prefixes-empty">No prefixes.</p>
+        <form id="add-prefix" class="row three">
+          <label class="sr-only" for="prefix-host">Host</label>
+          <input id="prefix-host" name="host" placeholder="localhost:5173" autocomplete="off" spellcheck="false" />
+          <label class="sr-only" for="prefix-value">Prefix</label>
+          <input id="prefix-value" name="prefix" placeholder="apps/web/" autocomplete="off" spellcheck="false" />
+          <button type="submit" class="primary">Save</button>
+        </form>
+        <div class="error" id="prefix-error" role="alert"></div>
+      </section>
+    </main>
+    <script type="module" src="/src/options.ts"></script>
+  </body>
+</html>
