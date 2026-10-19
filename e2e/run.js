@@ -102,6 +102,9 @@ await check("Shift-click copies only the path", async () => {
 await check("Alt-click copies only the name", async () => {
   expectEqual(await pick(page, "#plain-button", { modifiers: ["Alt"] }), "Button")
 })
+await check("native date inputs are inspectable", async () => {
+  expectEqual(await pick(page, "#plan-date"), `CheckoutPageClient (${APP}app/checkout/page.tsx:16)`)
+})
 await check("context menu copies the right-clicked element", async () => {
   await page.evaluate(() => navigator.clipboard.writeText(""))
   await page.locator("#plain-button").click({ button: "right" })
