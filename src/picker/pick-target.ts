@@ -1,7 +1,13 @@
 import { closestFiber, fiberFromNode } from "../lib/fiber"
+import { OVERLAY_HOST_ATTRIBUTE } from "./overlay"
 
 function elementsAtPoint(x: number, y: number): Element[] {
+  const overlay = document.querySelector(`[${OVERLAY_HOST_ATTRIBUTE}]`)
+  const hidden =
+    overlay instanceof HTMLElement && overlay.style.visibility !== "hidden"
+  if (hidden) overlay.style.visibility = "hidden"
   const fromStack = document.elementsFromPoint(x, y)
+  if (hidden) overlay.style.visibility = ""
   if (fromStack.length > 0) return fromStack.filter((node): node is Element => node instanceof Element)
   const single = document.elementFromPoint(x, y)
   return single instanceof Element ? [single] : []

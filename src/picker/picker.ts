@@ -1,6 +1,7 @@
+import { preferHostIntrinsicUsage } from "../lib/element-usage"
 import { closestFiber } from "../lib/fiber"
 import { copyModeForEvent, formatCopy, formatLocation, type CopyMode } from "../lib/reference"
-import type { ComponentResolver, ResolvedComponent } from "../lib/resolve"
+import type { ComponentResolver, ResolvedComponent, SourceLocation } from "../lib/resolve"
 import { componentRect, inspectElement, selectableComponents, type Inspection } from "./inspect"
 import type { Overlay } from "./overlay"
 import { pickTargetAtPoint, pickTargetFromEvent } from "./pick-target"
@@ -20,12 +21,14 @@ export async function copyComponent(
   options: PickerOptions,
   component: ResolvedComponent | undefined,
   mode: CopyMode,
+  usage?: SourceLocation | null,
 ): Promise<void> {
   if (!component) {
     options.overlay.toast("No React component found for this element", { error: true })
     return
   }
-  const text = formatCopy(mode, component.entry.name, component.usage, options.pathPrefix())
+  const location = usage === undefined ? component.usage : usage
+  const text = formatCopy(mode, component.entry.name, location, options.pathPrefix())
   const copied = await options.copy(text)
   if (copied) options.overlay.toast(`Copied ${text}`)
   else options.overlay.toast("Could not write to the clipboard", { error: true })
@@ -35,6 +38,7 @@ export class Picker {
   private active = false
   private inspection: Inspection | null = null
   private components: ResolvedComponent[] | null = null
+  private hostUsage: SourceLocation | null = null
   /** Index into the selectable components, 0 = nearest to the element. */
   private selected = 0
   private generation = 0
@@ -68,6 +72,9 @@ export class Picker {
     style.id = CURSOR_STYLE_ID
     style.textContent = "*, *::before, *::after { cursor: crosshair !important; }"
     document.documentElement.append(style)
+    const last = (window as unknown as { __rccLastPointer?: { x: number; y: number } }).__rccLastPointer
+    if (last) this.pointer = last
+    this.probeAtPointer()
     this.scheduleProbe()
   }
 
@@ -87,6 +94,7 @@ export class Picker {
     document.getElementById(CURSOR_STYLE_ID)?.remove()
     this.inspection = null
     this.components = null
+    this.hostUsage = null
     this.options.overlay.hide()
   }
 
@@ -118,15 +126,17 @@ export class Picker {
     const generation = ++this.generation
     this.inspection = inspection
     this.components = null
+    this.hostUsage = null
     this.selected = 0
     if (!inspection) {
       this.options.overlay.hide()
       return
     }
     this.render()
-    void inspection.components.then((components) => {
+    void Promise.all([inspection.components, inspection.hostUsage]).then(([components, hostUsage]) => {
       if (generation !== this.generation) return
       this.components = components
+      this.hostUsage = hostUsage
       this.render()
     })
   }
@@ -153,7 +163,8 @@ export class Picker {
       return
     }
 
-    const location = formatLocation(component.usage, this.options.pathPrefix())
+    const usage = preferHostIntrinsicUsage(inspection.host, component.usage, this.hostUsage)
+    const location = formatLocation(usage, this.options.pathPrefix())
     const breadcrumb = selectable.map((entry) => entry.entry.name).reverse()
     this.options.overlay.show(componentRect(component, inspection), {
       name: component.entry.name,
@@ -169,9 +180,11 @@ export class Picker {
     const inspection = this.inspection
     if (!inspection) return
     const selected = this.selected
-    const components = selectableComponents(await inspection.components)
+    const [components, hostUsage] = await Promise.all([inspection.components, inspection.hostUsage])
+    const picked = selectableComponents(components)[selected] ?? selectableComponents(components)[0]
+    const usage = picked ? preferHostIntrinsicUsage(inspection.host, picked.usage, hostUsage) : null
     this.stop()
-    await copyComponent(this.options, components[selected] ?? components[0], mode)
+    await copyComponent(this.options, picked, mode, usage)
   }
 
   private probeAtPointer(): void {

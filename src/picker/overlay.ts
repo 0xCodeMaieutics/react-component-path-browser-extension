@@ -66,6 +66,7 @@ export class Overlay {
     if (this.host?.isConnected) return
     this.host = document.createElement("div")
     this.host.setAttribute(OVERLAY_HOST_ATTRIBUTE, "")
+    this.host.style.pointerEvents = "none"
     const shadow = this.host.attachShadow({ mode: "closed" })
     shadow.innerHTML = `
       <style>${STYLES}</style>

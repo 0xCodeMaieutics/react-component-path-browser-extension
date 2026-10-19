@@ -1,6 +1,7 @@
 import { PAGE_EVENT, type PageConfig } from "./lib/messages"
 import { isCopyMode } from "./lib/reference"
 import { ComponentResolver, defaultSelection } from "./lib/resolve"
+import { preferHostIntrinsicUsage } from "./lib/element-usage"
 import { detectReact, inspectElement, selectableComponents } from "./picker/inspect"
 import { pickTargetFromEvent } from "./picker/pick-target"
 import { Overlay } from "./picker/overlay"
@@ -9,6 +10,7 @@ import { Picker, copyComponent, type PickerOptions } from "./picker/picker"
 declare global {
   interface Window {
     __reactComponentCopier?: boolean
+    __rccLastPointer?: { x: number; y: number }
   }
 }
 
@@ -41,6 +43,14 @@ function start(): void {
     copy: writeClipboard,
   }
   const picker = new Picker(options)
+
+  window.addEventListener(
+    "pointermove",
+    (event) => {
+      window.__rccLastPointer = { x: event.clientX, y: event.clientY }
+    },
+    true,
+  )
 
   function reactAvailable(): boolean {
     const build = detectReact()
@@ -84,9 +94,11 @@ function start(): void {
       void copyComponent(options, undefined, mode)
       return
     }
-    void inspection.components.then((components) => {
+    void Promise.all([inspection.components, inspection.hostUsage]).then(([components, hostUsage]) => {
       const selectable = selectableComponents(components)
-      return copyComponent(options, selectable[defaultSelection(selectable)], mode)
+      const picked = selectable[defaultSelection(selectable)]
+      const usage = picked ? preferHostIntrinsicUsage(inspection.host, picked.usage, hostUsage) : null
+      return copyComponent(options, picked, mode, usage)
     })
   })
 
