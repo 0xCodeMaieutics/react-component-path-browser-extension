@@ -1,11 +1,14 @@
+import { hostUsageHint } from "../lib/element-usage"
 import { closestFiber, fiberFromNode, hostElements, isDevelopmentFiber, outputRoot, ownerChain, type Fiber } from "../lib/fiber"
-import type { ComponentResolver, ResolvedComponent } from "../lib/resolve"
+import type { ComponentResolver, ResolvedComponent, SourceLocation } from "../lib/resolve"
 
 export interface Inspection {
   element: Element
   host: Fiber
   /** Owner chain, nearest first, with source locations once resolved. */
   components: Promise<ResolvedComponent[]>
+  /** Usage site of the inspected DOM node when it is a native host element. */
+  hostUsage: Promise<SourceLocation | null>
 }
 
 export type ReactBuild = "development" | "production" | "none"
@@ -19,10 +22,12 @@ export function inspectElement(element: Element, resolver: ComponentResolver): I
   const fallback = new Promise<ResolvedComponent[]>((resolve) =>
     setTimeout(() => resolve(chain.map((entry) => ({ entry, usage: null, isLibrary: false }))), RESOLVE_TIMEOUT_MS),
   )
+  const hostHint = hostUsageHint(found.fiber)
   return {
     element: found.element,
     host: found.fiber,
     components: Promise.race([resolver.resolveChain(chain), fallback]),
+    hostUsage: hostHint ? resolver.resolveHint(hostHint) : Promise.resolve(null),
   }
 }
 
@@ -34,6 +39,10 @@ export function selectableComponents(components: ResolvedComponent[]): ResolvedC
 
 /** Bounding box of everything a component rendered. */
 export function componentRect(component: ResolvedComponent, inspection: Inspection): DOMRect {
+  if (typeof inspection.host.type === "string") {
+    const tight = inspection.element.getBoundingClientRect()
+    if (tight.width > 0 || tight.height > 0) return tight
+  }
   const root = outputRoot(component.entry.owner, inspection.host)
   const rects = (root ? hostElements(root) : [])
     .map((element) => element.getBoundingClientRect())

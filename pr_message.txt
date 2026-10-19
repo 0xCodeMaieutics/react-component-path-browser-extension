@@ -1,0 +1,35 @@
+Fix picker hover on native date inputs
+
+## Summary
+
+Native `<input type="date">` controls often report hit targets inside user-agent shadow DOM. The picker only used the deepest `composedPath()` node, so `closestFiber` could fail and the overlay disappeared.
+
+```text
+onPointerMove / click / contextmenu
+  pickTargetAtPoint(clientX, clientY)     # elementsFromPoint stack
+  pickTargetFromEvent(event)             # target + composedPath fallback
+  inspectableElement(candidates)
+    prefer topmost input/textarea/select with fiber
+    else topmost fiber host
+    else closestFiber (shadow host climb)
+  inspect(resolved element)
+```
+
+```diff
+ picker/targetAt
+-  return composedPath()[0]
++  return pickTargetAtPoint(...) ?? pickTargetFromEvent(...)
+```
+
+## Evidence
+
+- **Before:** Hovering a native date input while the picker is active often shows no outline / no component reference.
+- **After:** `pnpm test` — 35 tests pass, including `pick-target.test.ts` (form control preference + shadow-internal hits). E2e adds `#plan-date` on the Next checkout playground.
+
+## Merge Danger
+
+**Door:** two-way
+
+**Blast Radius:** picker-only
+
+Hit testing changes affect every picker session; logic is additive and falls back to previous `closestFiber` behavior when the stack has no form control.
