@@ -1,18 +1,14 @@
 import { closestFiber, fiberFromNode } from "../lib/fiber"
 
-function isFormControl(element: Element): boolean {
-  return (
-    element instanceof HTMLInputElement ||
-    element instanceof HTMLTextAreaElement ||
-    element instanceof HTMLSelectElement
-  )
-}
-
 function elementsAtPoint(x: number, y: number): Element[] {
   const fromStack = document.elementsFromPoint(x, y)
   if (fromStack.length > 0) return fromStack.filter((node): node is Element => node instanceof Element)
   const single = document.elementFromPoint(x, y)
   return single instanceof Element ? [single] : []
+}
+
+function pointInRect(x: number, y: number, rect: DOMRect): boolean {
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
 }
 
 /** Unique elements in encounter order. */
@@ -27,26 +23,40 @@ function collectCandidates(candidates: Iterable<Element>, blocked?: (element: El
   return list
 }
 
+function resolveHost(element: Element): Element | null {
+  if (fiberFromNode(element)) return element
+  return closestFiber(element)?.element ?? null
+}
+
 /**
- * Picks the DOM node the picker should inspect. Prefer the topmost form control
- * with a React fiber, then any topmost fiber host, then closestFiber fallbacks
- * (covers shadow-internal hit targets on native inputs).
+ * Picks the DOM node the picker should inspect. With a pointer position, prefers
+ * the smallest React host whose box contains the point (disambiguates overlapping
+ * controls, e.g. a wide native date input vs a chevron button). Without a point,
+ * uses the first resolvable host in candidate order.
  */
 export function inspectableElement(
   candidates: Iterable<Element>,
-  blocked?: (element: Element) => boolean,
+  options?: { point?: { x: number; y: number }; blocked?: (element: Element) => boolean },
 ): Element | null {
-  const list = collectCandidates(candidates, blocked)
+  const list = collectCandidates(candidates, options?.blocked)
+  const point = options?.point
 
-  for (const element of list) {
-    if (isFormControl(element) && fiberFromNode(element)) return element
+  if (point) {
+    let best: { element: Element; area: number } | null = null
+    for (const raw of list) {
+      const host = resolveHost(raw)
+      if (!host) continue
+      const rect = host.getBoundingClientRect()
+      if (!pointInRect(point.x, point.y, rect)) continue
+      const area = rect.width * rect.height
+      if (!best || area < best.area) best = { element: host, area }
+    }
+    if (best) return best.element
   }
-  for (const element of list) {
-    if (fiberFromNode(element)) return element
-  }
-  for (const element of list) {
-    const found = closestFiber(element)
-    if (found) return found.element
+
+  for (const raw of list) {
+    const host = resolveHost(raw)
+    if (host) return host
   }
   return null
 }
@@ -56,7 +66,7 @@ export function pickTargetAtPoint(
   y: number,
   blocked?: (element: Element) => boolean,
 ): Element | null {
-  return inspectableElement(elementsAtPoint(x, y), blocked)
+  return inspectableElement(elementsAtPoint(x, y), { point: { x, y }, blocked })
 }
 
 export function pickTargetFromEvent(
@@ -64,12 +74,12 @@ export function pickTargetFromEvent(
   blocked?: (element: Element) => boolean,
 ): Element | null {
   const candidates: Element[] = []
-  if (event instanceof MouseEvent) {
-    candidates.push(...elementsAtPoint(event.clientX, event.clientY))
-  }
+  const point =
+    event instanceof MouseEvent ? { x: event.clientX, y: event.clientY } : undefined
+  if (point) candidates.push(...elementsAtPoint(point.x, point.y))
   if (event.target instanceof Element) candidates.push(event.target)
   for (const node of event.composedPath()) {
     if (node instanceof Element) candidates.push(node)
   }
-  return inspectableElement(candidates, blocked)
+  return inspectableElement(candidates, { point, blocked })
 }

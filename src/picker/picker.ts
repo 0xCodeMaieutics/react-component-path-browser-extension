@@ -39,6 +39,7 @@ export class Picker {
   private selected = 0
   private generation = 0
   private frame = 0
+  private probeFrame = 0
   private pointer: { x: number; y: number } | null = null
 
   constructor(private readonly options: PickerOptions) {}
@@ -67,6 +68,7 @@ export class Picker {
     style.id = CURSOR_STYLE_ID
     style.textContent = "*, *::before, *::after { cursor: crosshair !important; }"
     document.documentElement.append(style)
+    this.scheduleProbe()
   }
 
   stop(): void {
@@ -74,6 +76,7 @@ export class Picker {
     this.active = false
     this.generation++
     cancelAnimationFrame(this.frame)
+    cancelAnimationFrame(this.probeFrame)
     window.removeEventListener("pointermove", this.onPointerMove, true)
     window.removeEventListener("mousemove", this.onPointerMove, true)
     window.removeEventListener("click", this.onClick, true)
@@ -171,13 +174,23 @@ export class Picker {
     await copyComponent(this.options, components[selected] ?? components[0], mode)
   }
 
+  private probeAtPointer(): void {
+    if (!this.pointer) return
+    const element = pickTargetAtPoint(this.pointer.x, this.pointer.y, (el) => this.blocked(el))
+    if (element) this.inspect(element)
+  }
+
+  private scheduleProbe(): void {
+    cancelAnimationFrame(this.probeFrame)
+    this.probeFrame = requestAnimationFrame(() => {
+      if (!this.active) return
+      this.probeAtPointer()
+      this.scheduleProbe()
+    })
+  }
+
   private readonly onPointerMove = (event: MouseEvent): void => {
     this.pointer = { x: event.clientX, y: event.clientY }
-    const target = this.targetAt(event)
-    cancelAnimationFrame(this.frame)
-    this.frame = requestAnimationFrame(() => {
-      if (target && this.active) this.inspect(target)
-    })
   }
 
   private readonly onClick = (event: MouseEvent): void => {
