@@ -40,6 +40,28 @@ export function callSiteFrame(stack: string): StackFrame | null {
   return callSite
 }
 
+/**
+ * The frame of `functionName`'s render in an element stack: the call site, or
+ * one of its callers when the JSX sits in a callback (`rows.map((row) => …)`).
+ * Null when another component in `chainFunctionNames` is reached first, i.e.
+ * the element was written there and merely cloned. Anonymous components
+ * (empty `functionName`) own the call site unless it is a known component.
+ */
+export function renderFrame(stack: string, functionName: string, chainFunctionNames: Set<string>): StackFrame | null {
+  const callSite = callSiteFrame(stack)
+  if (!callSite) return null
+  if (!functionName) return chainFunctionNames.has(normalizeFunctionName(callSite.functionName)) ? null : callSite
+
+  const frames = parseStack(stack).slice(stack.startsWith(REACT_STACK_HEADER) ? 1 : 0)
+  for (const frame of frames) {
+    if (frame.functionName.includes(REACT_STACK_BOTTOM)) break
+    const name = normalizeFunctionName(frame.functionName)
+    if (name === functionName) return frame
+    if (chainFunctionNames.has(name)) return null
+  }
+  return null
+}
+
 /** React's own JSX runtime frame at the top of an element stack. */
 export function runtimeFrame(stack: string): StackFrame | null {
   return stack.startsWith(REACT_STACK_HEADER) ? (parseStack(stack)[0] ?? null) : null
