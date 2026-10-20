@@ -147,6 +147,26 @@ describe("ComponentResolver", () => {
     ])
   })
 
+  it("counts JSX written in a callback as the enclosing component's", async () => {
+    const [header, runtime, callSite] = stackAt("<anonymous>", "<a href").split("\n")
+    const [, , render] = stackAt("PayButton", "<Button asChild").split("\n")
+    const section: ServerComponentInfo = { name: "PayButton", env: "Server", owner: null }
+    const item = fiber(5, "li", section, [header, runtime, callSite, "    at Array.map (<anonymous>)", render].join("\n"))
+    const resolver = new ComponentResolver(ORIGIN, fetcher)
+    const [component] = await resolver.resolveChain(ownerChain(item))
+    expect(component!.isLibrary).toBe(false)
+  })
+
+  it("keeps a library that calls an app-written render prop as library code", async () => {
+    const [header, runtime, callSite] = stackAt("<anonymous>", "<a href").split("\n")
+    function Virtualizer() {}
+    const list = fiber(0, Virtualizer, null, null)
+    const item = fiber(5, "li", list, [header, runtime, callSite, `    at Virtualizer (${ORIGIN}/vendor.js:1:1)`].join("\n"))
+    const resolver = new ComponentResolver(ORIGIN, fetcher)
+    const [component] = await resolver.resolveChain(ownerChain(item))
+    expect(component!.isLibrary).toBe(true)
+  })
+
   it("falls back to React 18 _debugSource", async () => {
     const owner = fiber(0, ButtonType, null, null)
     const host: Fiber = {

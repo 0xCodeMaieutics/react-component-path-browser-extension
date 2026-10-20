@@ -2,7 +2,7 @@ import type { ComponentEntry, SourceHint } from "./fiber"
 import { jsxElementEndLine } from "./jsx-range"
 import { SourceMapStore, type Fetcher } from "./source-maps"
 import { ProjectRoots, isLibraryPath, isLibraryUrl, toSourcePath, type SourcePath } from "./source-path"
-import { callSiteFrame, normalizeFunctionName, runtimeFrame, unwrapEnvironmentUrl, type StackFrame } from "./stack"
+import { callSiteFrame, renderFrame, runtimeFrame, unwrapEnvironmentUrl, type StackFrame } from "./stack"
 
 export interface SourceLocation {
   path: SourcePath
@@ -48,7 +48,8 @@ export class ComponentResolver {
    * A component's definition is wherever the elements it rendered were
    * written. Elements it merely cloned (e.g. Radix `Slot`) keep the stack of
    * the component that wrote them, so only frames running this component's
-   * render function count as evidence.
+   * render function count as evidence. That frame, not the JSX call site,
+   * decides: a library calling an app-written render prop stays a library.
    */
   private async isLibraryComponent(entry: ComponentEntry, chainFunctionNames: Set<string>): Promise<boolean> {
     for (const hint of entry.evidence) {
@@ -56,11 +57,8 @@ export class ComponentResolver {
         const location = await this.resolveHint(hint)
         return location ? location.isLibrary : true
       }
-      const frame = callSiteFrame(hint.stack)
+      const frame = renderFrame(hint.stack, entry.functionName, chainFunctionNames)
       if (!frame) continue
-      const name = normalizeFunctionName(frame.functionName)
-      const ownsFrame = entry.functionName ? name === entry.functionName : !chainFunctionNames.has(name)
-      if (!ownsFrame) continue
       const location = await this.resolveFrame(frame, runtimeFrame(hint.stack))
       return location ? location.isLibrary : isLibraryUrl(frame.url)
     }
